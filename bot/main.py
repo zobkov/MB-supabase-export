@@ -11,6 +11,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 
 from .config import settings
+from .features.common.handlers import router as common_router
 from .features.export.handlers import router as export_router
 from .features.export.scheduler import scheduled_export_job
 from .features.stat.dialog import stat_dialog
@@ -32,6 +33,7 @@ async def main() -> None:
     dp = Dispatcher(storage=storage)
     dp.update.outer_middleware(AdminOnlyMiddleware())
 
+    dp.include_router(common_router)
     dp.include_router(export_router)
     dp.include_router(stat_dialog)
     setup_dialogs(dp)
@@ -49,8 +51,8 @@ async def main() -> None:
     @dp.startup()
     async def on_startup(**_: object) -> None:
         scheduler.start()
-        logger.info("Bot started | admin_chat_id=%d | cron=%s %s",
-                    settings.admin_chat_id, settings.schedule_cron, settings.schedule_tz)
+        logger.info("Bot started | admins=%s | cron=%s %s",
+                    settings.admin_chat_ids, settings.schedule_cron, settings.schedule_tz)
 
     @dp.shutdown()
     async def on_shutdown(**_: object) -> None:
