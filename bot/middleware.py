@@ -20,6 +20,6 @@ class AdminOnlyMiddleware(BaseMiddleware):
         elif update.callback_query and update.callback_query.message:
             chat_id = update.callback_query.message.chat.id
 
-        if chat_id != settings.admin_chat_id:
+        if chat_id not in settings.admin_chat_ids:
             return
         return await handler(event, data)

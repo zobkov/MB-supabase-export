@@ -14,15 +14,17 @@ async def scheduled_export_job(bot: Bot) -> None:
     rows = await fetch_participants_after(last_id)
 
     if not rows:
-        await bot.send_message(settings.admin_chat_id, "Нет новых участников с последней выгрузки.")
+        for chat_id in settings.admin_chat_ids:
+            await bot.send_message(chat_id, "Нет новых участников с последней выгрузки.")
         return
 
     data = build_xlsx_bytes(rows)
     filename = f"participants_new_{datetime.now().strftime('%Y-%m-%d_%H-%M')}.xlsx"
-    await bot.send_document(
-        settings.admin_chat_id,
-        document=BufferedInputFile(data, filename=filename),
-        caption=f"Новые участники: {len(rows)} записей",
-    )
+    for chat_id in settings.admin_chat_ids:
+        await bot.send_document(
+            chat_id,
+            document=BufferedInputFile(data, filename=filename),
+            caption=f"Новые участники: {len(rows)} записей",
+        )
 
     await set_last_exported_id(max(r["id"] for r in rows))
