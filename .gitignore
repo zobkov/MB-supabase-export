@@ -119,3 +119,5 @@ poetry.lock
 
 *.xls
 *.xlsx
+
+.vscode/
