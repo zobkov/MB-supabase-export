@@ -20,7 +20,8 @@ redis-server            # required for the bot (FSM storage + incremental state)
 SUPABASE_URL=
 SUPABASE_KEY=
 BOT_TOKEN=
-ADMIN_CHAT_ID=          # numeric Telegram user ID
+ADMIN_CHAT_IDS=         # comma-separated numeric Telegram user IDs (access to commands)
+EXPORT_RECIPIENT_CHAT_IDS=  # comma-separated IDs who receive scheduled exports (optional, defaults to ADMIN_CHAT_IDS)
 REDIS_URL=redis://localhost:6379
 SCHEDULE_CRON=0 9 * * *
 SCHEDULE_TZ=Europe/Moscow

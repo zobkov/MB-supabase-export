@@ -51,8 +51,13 @@ async def main() -> None:
     @dp.startup()
     async def on_startup(**_: object) -> None:
         scheduler.start()
-        logger.info("Bot started | admins=%s | cron=%s %s",
-                    settings.admin_chat_ids, settings.schedule_cron, settings.schedule_tz)
+        logger.info(
+            "Bot started | admins=%s | export_recipients=%s | cron=%s %s",
+            settings.admin_chat_ids,
+            settings.export_recipient_chat_ids,
+            settings.schedule_cron,
+            settings.schedule_tz,
+        )
 
     @dp.shutdown()
     async def on_shutdown(**_: object) -> None:

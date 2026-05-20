@@ -14,13 +14,13 @@ async def scheduled_export_job(bot: Bot) -> None:
     rows = await fetch_participants_after(last_id)
 
     if not rows:
-        for chat_id in settings.admin_chat_ids:
+        for chat_id in settings.export_recipient_chat_ids:
             await bot.send_message(chat_id, "Нет новых участников с последней выгрузки.")
         return
 
     data = build_short_xlsx_bytes(rows)
     filename = f"participants_new_{datetime.now().strftime('%Y-%m-%d_%H-%M')}.xlsx"
-    for chat_id in settings.admin_chat_ids:
+    for chat_id in settings.export_recipient_chat_ids:
         await bot.send_document(
             chat_id,
             document=BufferedInputFile(data, filename=filename),
