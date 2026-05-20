@@ -36,6 +36,46 @@ _COL_WIDTHS: dict[str, int] = {
 }
 
 
+def build_short_xlsx_bytes(rows: list[dict]) -> bytes:
+    """3-column format for scheduled exports: Фамилия | Имя Отчество | Email."""
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Участники"
+
+    headers = ["Фамилия", "Имя Отчество", "Email"]
+    for col_idx, label in enumerate(headers, start=1):
+        cell = ws.cell(row=1, column=col_idx, value=label)
+        cell.fill = _HEADER_FILL
+        cell.font = _HEADER_FONT
+        cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    ws.row_dimensions[1].height = 24
+
+    for row_idx, row in enumerate(rows, start=2):
+        fill = _ALT_FILL if row_idx % 2 == 0 else None
+        fullname = (row.get("fullname") or "").strip()
+        parts = fullname.split(" ", 1)
+        last_name = parts[0]
+        first_middle = parts[1] if len(parts) > 1 else ""
+        email = row.get("email") or ""
+
+        for col_idx, val in enumerate([last_name, first_middle, email], start=1):
+            cell = ws.cell(row=row_idx, column=col_idx, value=val)
+            cell.font = _ROW_FONT
+            cell.alignment = Alignment(vertical="center")
+            if fill:
+                cell.fill = fill
+
+    ws.column_dimensions["A"].width = 22
+    ws.column_dimensions["B"].width = 30
+    ws.column_dimensions["C"].width = 28
+    ws.freeze_panes = "A2"
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    return buf.read()
+
+
 def build_xlsx_bytes(rows: list[dict]) -> bytes:
     keys   = [c[0] for c in COLUMNS]
     labels = [c[1] for c in COLUMNS]
