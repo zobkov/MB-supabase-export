@@ -37,7 +37,13 @@ def _week_start(d: date) -> date:
 def _format_table(rows: list[tuple[str, int]], col_header: str = "Дата") -> str:
     pad = " " * (6 - len(col_header))
     header = f"{col_header}{pad}| Новых"
-    lines = [header] + [f"{ds} | {n:>5}" for ds, n in rows]
+    if not rows:
+        return header
+    max_count = max(n for _, n in rows)
+    lines = [header]
+    for ds, n in rows:
+        bars = "█" * round(n / max_count * 10) if max_count else ""
+        lines.append(f"{ds} | {n:>5} {bars}")
     return "\n".join(lines)
 
 
