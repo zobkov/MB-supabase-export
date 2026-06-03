@@ -1,8 +1,11 @@
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 from supabase import acreate_client, AsyncClient
 
 from ..config import settings
+
+_MOSCOW = ZoneInfo("Europe/Moscow")
 
 
 async def _client() -> AsyncClient:
@@ -25,6 +28,21 @@ async def fetch_participants_after(last_id: int) -> list[dict]:
         .execute()
     )
     return res.data
+
+
+async def fetch_all_created_at_dates() -> tuple[int, list[date]]:
+    c = await _client()
+    res = await c.table("participants").select("created_at", count="exact").execute()
+    total: int = res.count or 0
+    dates: list[date] = []
+    for row in res.data:
+        raw = row.get("created_at")
+        if raw:
+            dt = datetime.fromisoformat(raw)
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            dates.append(dt.astimezone(_MOSCOW).date())
+    return total, dates
 
 
 async def fetch_stats() -> dict:

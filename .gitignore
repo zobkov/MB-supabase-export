@@ -121,3 +121,4 @@ poetry.lock
 *.xlsx
 
 .vscode/
+.DS_Store
