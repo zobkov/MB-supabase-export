@@ -1,6 +1,6 @@
 import calendar
 from collections import defaultdict
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 from aiogram.fsm.state import State, StatesGroup
@@ -34,21 +34,27 @@ def _week_start(d: date) -> date:
     return d - timedelta(days=d.weekday())
 
 
-def _format_table(rows: list[tuple[str, int]]) -> str:
-    lines = ["Дата  | Новых"] + [f"{ds} | {n:>5}" for ds, n in rows]
+def _format_table(rows: list[tuple[str, int]], col_header: str = "Дата") -> str:
+    pad = " " * (6 - len(col_header))
+    header = f"{col_header}{pad}| Новых"
+    lines = [header] + [f"{ds} | {n:>5}" for ds, n in rows]
     return "\n".join(lines)
 
 
+def _load_datetimes(manager: DialogManager) -> list[datetime]:
+    return [datetime.fromisoformat(s) for s in manager.dialog_data["datetimes"]]
+
+
 def _load_dates(manager: DialogManager) -> list[date]:
-    return [date.fromisoformat(s) for s in manager.dialog_data["dates"]]
+    return [datetime.fromisoformat(s).date() for s in manager.dialog_data["datetimes"]]
 
 
 # ── data bootstrap ────────────────────────────────────────────────────────────
 
 async def _on_dialog_start(start_data, manager: DialogManager) -> None:
-    total, dates = await fetch_all_created_at_dates()
+    total, datetimes = await fetch_all_created_at_dates()
     manager.dialog_data["total"] = total
-    manager.dialog_data["dates"] = [d.isoformat() for d in dates]
+    manager.dialog_data["datetimes"] = [dt.isoformat() for dt in datetimes]
 
 
 # ── getters ───────────────────────────────────────────────────────────────────
@@ -82,9 +88,18 @@ async def _day_list_getter(dialog_manager: DialogManager, **kwargs) -> dict:
 
 async def _day_detail_getter(dialog_manager: DialogManager, **kwargs) -> dict:
     sel = date.fromisoformat(dialog_manager.dialog_data["selected_day"])
-    dates = _load_dates(dialog_manager)
-    count = sum(1 for d in dates if d == sel)
-    return {"date_str": sel.strftime("%d.%m.%Y"), "count": count}
+    datetimes = _load_datetimes(dialog_manager)
+    day_dts = [dt for dt in datetimes if dt.date() == sel]
+    count = len(day_dts)
+    hour_counts: dict[int, int] = defaultdict(int)
+    for dt in day_dts:
+        hour_counts[dt.hour] += 1
+    hourly_rows = [(f"{h:02d}:00", hour_counts[h]) for h in sorted(hour_counts)]
+    return {
+        "date_str": sel.strftime("%d.%m.%Y"),
+        "count": count,
+        "hourly_table": _format_table(hourly_rows, col_header="Час"),
+    }
 
 
 async def _week_list_getter(dialog_manager: DialogManager, **kwargs) -> dict:
@@ -216,7 +231,12 @@ _day_list_window = Window(
 )
 
 _day_detail_window = Window(
-    Format("<b>{date_str}</b>\nРегистраций: {count}"),
+    Format(
+        "<b>{date_str}</b>\n"
+        "Регистраций: {count}\n\n"
+        "<b>По часам:</b>\n"
+        "<code>{hourly_table}</code>"
+    ),
     Button(Format("◀ Назад"), id="dd_back", on_click=_go_day_list),
     state=StatSG.day_detail,
     getter=_day_detail_getter,

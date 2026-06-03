@@ -30,19 +30,19 @@ async def fetch_participants_after(last_id: int) -> list[dict]:
     return res.data
 
 
-async def fetch_all_created_at_dates() -> tuple[int, list[date]]:
+async def fetch_all_created_at_dates() -> tuple[int, list[datetime]]:
     c = await _client()
     res = await c.table("participants").select("created_at", count="exact").execute()
     total: int = res.count or 0
-    dates: list[date] = []
+    datetimes: list[datetime] = []
     for row in res.data:
         raw = row.get("created_at")
         if raw:
             dt = datetime.fromisoformat(raw)
             if dt.tzinfo is None:
                 dt = dt.replace(tzinfo=timezone.utc)
-            dates.append(dt.astimezone(_MOSCOW).date())
-    return total, dates
+            datetimes.append(dt.astimezone(_MOSCOW))
+    return total, datetimes
 
 
 async def fetch_stats() -> dict:
