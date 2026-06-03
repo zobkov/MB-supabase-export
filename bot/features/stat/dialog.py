@@ -41,6 +41,17 @@ def _format_table(rows: list[tuple[str, int]], col_header: str = "Дата") -> 
     return "\n".join(lines)
 
 
+def _format_hourly_table(rows: list[tuple[str, int]]) -> str:
+    if not rows:
+        return ""
+    max_count = max(n for _, n in rows)
+    lines = ["Час   | Новых"]
+    for hs, n in rows:
+        bars = "█" * round(n / max_count * 10) if max_count else ""
+        lines.append(f"{hs} | {n:>5} {bars}")
+    return "\n".join(lines)
+
+
 def _load_datetimes(manager: DialogManager) -> list[datetime]:
     return [datetime.fromisoformat(s) for s in manager.dialog_data["datetimes"]]
 
@@ -98,7 +109,7 @@ async def _day_detail_getter(dialog_manager: DialogManager, **kwargs) -> dict:
     return {
         "date_str": sel.strftime("%d.%m.%Y"),
         "count": count,
-        "hourly_table": _format_table(hourly_rows, col_header="Час"),
+        "hourly_table": _format_hourly_table(hourly_rows),
     }
 
 
