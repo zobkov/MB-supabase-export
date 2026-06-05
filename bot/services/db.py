@@ -1,4 +1,5 @@
 from datetime import date, datetime, timedelta, timezone
+from typing import Callable
 from zoneinfo import ZoneInfo
 
 from supabase import acreate_client, AsyncClient
@@ -6,43 +7,54 @@ from supabase import acreate_client, AsyncClient
 from ..config import settings
 
 _MOSCOW = ZoneInfo("Europe/Moscow")
+_PAGE = 1000
 
 
 async def _client() -> AsyncClient:
     return await acreate_client(settings.supabase_url, settings.supabase_key)
 
 
+async def _fetch_paginated(query_factory: Callable) -> list[dict]:
+    """Fetch all rows by iterating pages of _PAGE size."""
+    offset = 0
+    all_rows: list[dict] = []
+    while True:
+        res = await query_factory().range(offset, offset + _PAGE - 1).execute()
+        all_rows.extend(res.data)
+        if len(res.data) < _PAGE:
+            break
+        offset += _PAGE
+    return all_rows
+
+
 async def fetch_all_participants() -> list[dict]:
     c = await _client()
-    res = await c.table("participants").select("*").order("id").execute()
-    return res.data
+    return await _fetch_paginated(
+        lambda: c.table("participants").select("*").order("id")
+    )
 
 
 async def fetch_participants_after(last_id: int) -> list[dict]:
     c = await _client()
-    res = (
-        await c.table("participants")
-        .select("*")
-        .gt("id", last_id)
-        .order("id")
-        .execute()
+    return await _fetch_paginated(
+        lambda: c.table("participants").select("*").gt("id", last_id).order("id")
     )
-    return res.data
 
 
 async def fetch_all_created_at_dates() -> tuple[int, list[datetime]]:
     c = await _client()
-    res = await c.table("participants").select("created_at", count="exact").execute()
-    total: int = res.count or 0
+    rows = await _fetch_paginated(
+        lambda: c.table("participants").select("created_at")
+    )
     datetimes: list[datetime] = []
-    for row in res.data:
+    for row in rows:
         raw = row.get("created_at")
         if raw:
             dt = datetime.fromisoformat(raw)
             if dt.tzinfo is None:
                 dt = dt.replace(tzinfo=timezone.utc)
             datetimes.append(dt.astimezone(_MOSCOW))
-    return total, datetimes
+    return len(datetimes), datetimes
 
 
 async def fetch_stats() -> dict:
