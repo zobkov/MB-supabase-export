@@ -6,7 +6,7 @@ from aiogram.types import BufferedInputFile, Message
 from aiogram_dialog import DialogManager, StartMode
 
 from ...services.db import fetch_all_participants, fetch_participants_after
-from ...services.excel import build_xlsx_bytes
+from ...services.excel import build_short_xlsx_bytes, build_xlsx_bytes
 from ...services.redis_state import get_last_exported_id
 from ..stat.dialog import StatSG
 
@@ -35,7 +35,7 @@ async def cmd_export_inc(message: Message) -> None:
     if not rows:
         await message.answer("Нет новых участников.")
         return
-    data = build_xlsx_bytes(rows)
+    data = build_short_xlsx_bytes(rows)
     filename = f"participants_inc_{datetime.now().strftime('%Y-%m-%d_%H-%M')}.xlsx"
     await message.answer_document(
         BufferedInputFile(data, filename=filename),
