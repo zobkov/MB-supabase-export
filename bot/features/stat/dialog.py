@@ -9,7 +9,7 @@ from aiogram_dialog import Dialog, DialogManager, Window
 from aiogram_dialog.widgets.kbd import Button, Row, ScrollingGroup, Select
 from aiogram_dialog.widgets.text import Format
 
-from ...services.db import fetch_all_created_at_dates
+from ...services.db import fetch_all_participants_stat
 
 _MOSCOW = ZoneInfo("Europe/Moscow")
 
@@ -28,6 +28,7 @@ class StatSG(StatesGroup):
     week_detail = State()
     month_list = State()
     month_detail = State()
+    track_list = State()
 
 
 def _week_start(d: date) -> date:
@@ -44,6 +45,20 @@ def _format_table(rows: list[tuple[str, int]], col_header: str = "Дата") -> 
     for ds, n in rows:
         bars = "█" * round(n / max_count * 10) if max_count else ""
         lines.append(f"{ds} | {n:>5} {bars}")
+    return "\n".join(lines)
+
+
+def _format_track_table(rows: list[tuple[str, int]]) -> str:
+    if not rows:
+        return "Нет данных"
+    max_count = max(n for _, n in rows)
+    max_len = max(len(t) for t, _ in rows)
+    col_w = max(max_len, 4)
+    header = f"{'Трек':<{col_w}} | Кол-во"
+    lines = [header]
+    for track, n in rows:
+        bars = "█" * round(n / max_count * 10) if max_count else ""
+        lines.append(f"{track:<{col_w}} | {n:>5} {bars}")
     return "\n".join(lines)
 
 
@@ -69,9 +84,10 @@ def _load_dates(manager: DialogManager) -> list[date]:
 # ── data bootstrap ────────────────────────────────────────────────────────────
 
 async def _on_dialog_start(start_data, manager: DialogManager) -> None:
-    total, datetimes = await fetch_all_created_at_dates()
+    total, datetimes, tracks = await fetch_all_participants_stat()
     manager.dialog_data["total"] = total
     manager.dialog_data["datetimes"] = [dt.isoformat() for dt in datetimes]
+    manager.dialog_data["tracks"] = tracks
 
 
 # ── getters ───────────────────────────────────────────────────────────────────
@@ -181,6 +197,15 @@ async def _month_detail_getter(dialog_manager: DialogManager, **kwargs) -> dict:
     }
 
 
+async def _track_list_getter(dialog_manager: DialogManager, **kwargs) -> dict:
+    tracks: list[str] = dialog_manager.dialog_data["tracks"]
+    counts: dict[str, int] = defaultdict(int)
+    for t in tracks:
+        counts[t or "—"] += 1
+    rows = sorted(counts.items(), key=lambda x: -x[1])
+    return {"track_table": _format_track_table(rows), "total": sum(counts.values())}
+
+
 # ── click handlers ────────────────────────────────────────────────────────────
 
 async def _go_main(c: CallbackQuery, b: Button, m: DialogManager) -> None:
@@ -207,6 +232,9 @@ async def _on_month_selected(c: CallbackQuery, w: Select, m: DialogManager, item
     m.dialog_data["selected_month"] = item_id
     await m.switch_to(StatSG.month_detail)
 
+async def _go_track_list(c: CallbackQuery, b: Button, m: DialogManager) -> None:
+    await m.switch_to(StatSG.track_list)
+
 
 # ── windows ───────────────────────────────────────────────────────────────────
 
@@ -222,6 +250,7 @@ _main_window = Window(
         Button(Format("Неделя"), id="go_week", on_click=_go_week_list),
         Button(Format("Месяц"), id="go_month", on_click=_go_month_list),
     ),
+    Button(Format("Треки"), id="go_tracks", on_click=_go_track_list),
     state=StatSG.main,
     getter=_main_getter,
     parse_mode="HTML",
@@ -323,6 +352,19 @@ _month_detail_window = Window(
 )
 
 
+_track_list_window = Window(
+    Format(
+        "<b>Статистика по трекам</b>\n"
+        "Всего: {total}\n\n"
+        "<code>{track_table}</code>"
+    ),
+    Button(Format("◀ Назад"), id="tl_back", on_click=_go_main),
+    state=StatSG.track_list,
+    getter=_track_list_getter,
+    parse_mode="HTML",
+)
+
+
 stat_dialog = Dialog(
     _main_window,
     _day_list_window,
@@ -331,5 +373,6 @@ stat_dialog = Dialog(
     _week_detail_window,
     _month_list_window,
     _month_detail_window,
+    _track_list_window,
     on_start=_on_dialog_start,
 )

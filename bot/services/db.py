@@ -57,6 +57,24 @@ async def fetch_all_created_at_dates() -> tuple[int, list[datetime]]:
     return len(datetimes), datetimes
 
 
+async def fetch_all_participants_stat() -> tuple[int, list[datetime], list[str]]:
+    c = await _client()
+    rows = await _fetch_paginated(
+        lambda: c.table("participants").select("created_at,track")
+    )
+    datetimes: list[datetime] = []
+    tracks: list[str] = []
+    for row in rows:
+        raw = row.get("created_at")
+        if raw:
+            dt = datetime.fromisoformat(raw)
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            datetimes.append(dt.astimezone(_MOSCOW))
+            tracks.append(row.get("track") or "")
+    return len(datetimes), datetimes, tracks
+
+
 async def fetch_stats() -> dict:
     c = await _client()
 
